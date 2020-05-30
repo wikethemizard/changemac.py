@@ -2,6 +2,8 @@
 
 import subprocess #Lets us issue shell commands.
 import optparse #Lets the script take arguments.
+import re #Regex
+import sys #Let's us exit the script.
 
 def get_arguments():
     #Create OptionParser object to handle arguments.
@@ -45,9 +47,32 @@ def change_mac(interface, new_mac):
     print("[+] Turning on interface...")
     subprocess.run(["ifconfig", interface, "up"])
 
-    print("[i] Done!")
+
+def get_mac(interface):
+    #Capture output of ifconfig, and save the MAC address in a variable.
+    ifconfig_result = subprocess.check_output(["ifconfig", interface])
+    ifconfig_mac = re.search(r"\w\w:\w\w:\w\w:\w\w:\w\w:\w\w", str(ifconfig_result))
+    if (ifconfig_mac):
+        #We only want the 1st match of our regex expression.
+        return ifconfig_mac.group(0)
+    else:
+        print("[-] Could not read MAC address for target interface. Can this interface have a MAC address?") 
+        sys.exit() #Exit the script.
 
 
-#Change the mac using the options we got.
+#Get the options provided via arguments when script was run.
 options = get_arguments()
+
+#Check what the current MAC address is. NOTE: We have not made any changes yet.
+current_mac = get_mac(options.arg_interface)
+print("[+] The current MAC Address is: {}".format(current_mac))
+
+#Change the MAC address using the options we got.
 change_mac(options.arg_interface, options.arg_new_mac)
+
+#Check what the current MAC address is AFTER having made changes via change_mac().
+current_mac = get_mac(options.arg_interface)
+if (current_mac == options.arg_new_mac):
+    print("[+] SUCCESS! New MAC address for {}: {}".format(options.arg_interface, current_mac))
+else:
+    print("[-] Changing failed. Check input, and make sure target interface can have a MAC address.")
